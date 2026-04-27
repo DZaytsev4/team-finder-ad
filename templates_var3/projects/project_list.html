@@ -12,19 +12,19 @@
 <div class="project-container">
     <div class="project-header">
         <h2 class="project-title">Актуальные проекты</h2>
-        {% if projects %}
+        {% if projects.paginator.count %}
             <a href="/projects/create-project" class="black-button">+ Создать проект</a>
         {% endif %}
     </div>
     <p class="project-subtitle">Найдите интересный проект и присоединитесь к команде</p>
 
-    <div class="skills-filter">
+    <div class="skills-filter-card">
         <span class="filter-label">Фильтр по необходимым навыкам:</span>
         <div class="filter-chips">
             {% for skill in all_skills %}
-            <a href="?skill={{ skill }}"
-               class="filter-chip {% if active_skill == skill %}active{% endif %}">
-                {{ skill }}
+            <a href="?skill={{ skill.name }}"
+               class="filter-chip {% if active_skill == skill.name %}active{% endif %}">
+                {{ skill.name }}
             </a>
             {% endfor %}
             {% if active_skill %}
@@ -41,6 +41,17 @@
         {% endfor %}
     </div>
     {% include 'includes/project-fav-toggle.js' %}
+    {% if projects.has_other_pages %}
+    <nav class="pagination" style="margin-top: 1.5rem; display: flex; gap: 1rem; align-items: center; justify-content: center;">
+        {% if projects.has_previous %}
+        <a href="?page={{ projects.previous_page_number }}{% if active_skill %}&skill={{ active_skill }}{% endif %}">Назад</a>
+        {% endif %}
+        <span>Страница {{ projects.number }} из {{ projects.paginator.num_pages }}</span>
+        {% if projects.has_next %}
+        <a href="?page={{ projects.next_page_number }}{% if active_skill %}&skill={{ active_skill }}{% endif %}">Вперёд</a>
+        {% endif %}
+    </nav>
+    {% endif %}
 </div>
 
 {% endblock %}

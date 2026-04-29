@@ -9,9 +9,6 @@ SECRET_KEY = config("DJANGO_SECRET_KEY")
 
 DEBUG = config("DJANGO_DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
-
-
 # Application definition
 
 INSTALLED_APPS = [

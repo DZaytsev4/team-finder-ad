@@ -1,9 +1,8 @@
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse
 from django.views.generic import DetailView, UpdateView
 from django.views.generic.edit import FormView
 
@@ -14,6 +13,7 @@ from users.forms import (
     UserPasswordChangeForm,
 )
 from users.models import User
+from team_finder.pagination import DEFAULT_PER_PAGE, paginate
 
 
 def register_view(request):
@@ -66,8 +66,7 @@ class UserDetailView(DetailView):
 
 def participants_list(request):
     qs = User.objects.order_by("-id")
-    paginator = Paginator(qs, 12)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    page_obj = paginate(request, qs, per_page=DEFAULT_PER_PAGE)
     return render(
         request,
         "users/participants.html",
@@ -87,7 +86,7 @@ class EditProfileView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return self.request.user
 
     def get_success_url(self):
-        return reverse_lazy("users:detail", kwargs={"pk": self.request.user.pk})
+        return reverse("users:detail", kwargs={"pk": self.request.user.pk})
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)

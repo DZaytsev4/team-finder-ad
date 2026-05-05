@@ -1,18 +1,23 @@
 import json
 
+from http import HTTPStatus
+
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.core.paginator import Paginator
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import CreateView, DetailView, UpdateView
 
 from projects.forms import ProjectForm
+from projects.mixins import OwnerOrStaffMixin
 from projects.models import Project, Skill
+from team_finder.pagination import DEFAULT_PER_PAGE, paginate
+
+SKILLS_AUTOCOMPLETE_LIMIT = 10
 
 
 def root_redirect(request):
@@ -29,8 +34,7 @@ def project_list(request):
     if active_skill:
         qs = qs.filter(skills__name=active_skill).distinct()
     all_skills = Skill.objects.all().order_by("name")
-    paginator = Paginator(qs, 12)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    page_obj = paginate(request, qs, per_page=DEFAULT_PER_PAGE)
     return render(
         request,
         "projects/project_list.html",
@@ -70,13 +74,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         return response
 
     def get_success_url(self):
-        return reverse_lazy("projects:detail", kwargs={"pk": self.object.pk})
-
-
-class OwnerOrStaffMixin(UserPassesTestMixin):
-    def test_func(self):
-        project = self.get_object()
-        return self.request.user.is_staff or project.owner_id == self.request.user.id
+        return reverse("projects:detail", kwargs={"pk": self.object.pk})
 
 
 class ProjectUpdateView(LoginRequiredMixin, OwnerOrStaffMixin, UpdateView):
@@ -90,19 +88,21 @@ class ProjectUpdateView(LoginRequiredMixin, OwnerOrStaffMixin, UpdateView):
         return ctx
 
     def get_success_url(self):
-        return reverse_lazy("projects:detail", kwargs={"pk": self.object.pk})
+        return reverse("projects:detail", kwargs={"pk": self.object.pk})
 
 
 @login_required
 def complete_project(request, pk):
     if request.method != "POST":
-        return JsonResponse({"status": "error"}, status=405)
+        return JsonResponse(
+            {"status": "error"}, status=HTTPStatus.METHOD_NOT_ALLOWED
+        )
     project = get_object_or_404(Project, pk=pk)
     allowed = (
         request.user.is_staff or project.owner_id == request.user.id
     ) and project.status == Project.STATUS_OPEN
     if not allowed:
-        return JsonResponse({"status": "error"}, status=403)
+        return JsonResponse({"status": "error"}, status=HTTPStatus.FORBIDDEN)
     project.status = Project.STATUS_CLOSED
     project.save(update_fields=["status"])
     return JsonResponse({"status": "ok", "project_status": "closed"})
@@ -111,10 +111,12 @@ def complete_project(request, pk):
 @login_required
 def toggle_participate(request, pk):
     if request.method != "POST":
-        return JsonResponse({"status": "error"}, status=405)
+        return JsonResponse(
+            {"status": "error"}, status=HTTPStatus.METHOD_NOT_ALLOWED
+        )
     project = get_object_or_404(Project, pk=pk)
     if project.owner_id == request.user.id:
-        return JsonResponse({"status": "error"}, status=400)
+        return JsonResponse({"status": "error"}, status=HTTPStatus.BAD_REQUEST)
     user = request.user
     if project.participants.filter(pk=user.pk).exists():
         project.participants.remove(user)
@@ -130,7 +132,7 @@ def skills_autocomplete(request):
     qs = Skill.objects.all()
     if q:
         qs = qs.filter(name__istartswith=q)
-    qs = qs.order_by("name")[:10]
+    qs = qs.order_by("name")[:SKILLS_AUTOCOMPLETE_LIMIT]
     data = [{"id": s.pk, "name": s.name} for s in qs]
     return JsonResponse(data, safe=False)
 
@@ -140,7 +142,7 @@ class ProjectSkillAddView(View):
     def post(self, request, pk):
         project = get_object_or_404(Project, pk=pk)
         if not (request.user.is_staff or project.owner_id == request.user.id):
-            return JsonResponse({"error": "forbidden"}, status=403)
+            return JsonResponse({"error": "forbidden"}, status=HTTPStatus.FORBIDDEN)
 
         payload = {}
         if request.body:
@@ -167,14 +169,14 @@ class ProjectSkillAddView(View):
                 if skill is None:
                     return JsonResponse(
                         {"skill_id": None, "created": False, "added": False},
-                        status=400,
+                        status=HTTPStatus.BAD_REQUEST,
                     )
             elif name:
                 skill, created = Skill.objects.get_or_create(name=name)
             else:
                 return JsonResponse(
                     {"skill_id": None, "created": False, "added": False},
-                    status=400,
+                    status=HTTPStatus.BAD_REQUEST,
                 )
 
             if skill and project.skills.filter(pk=skill.pk).exists():
@@ -206,11 +208,11 @@ class ProjectSkillRemoveView(View):
     def post(self, request, pk, skill_id):
         project = get_object_or_404(Project, pk=pk)
         if not (request.user.is_staff or project.owner_id == request.user.id):
-            return JsonResponse({"error": "forbidden"}, status=403)
+            return JsonResponse({"error": "forbidden"}, status=HTTPStatus.FORBIDDEN)
         skill = Skill.objects.filter(pk=skill_id).first()
         if skill is None:
-            return JsonResponse({"status": "error"}, status=404)
+            return JsonResponse({"status": "error"}, status=HTTPStatus.NOT_FOUND)
         if not project.skills.filter(pk=skill.pk).exists():
-            return JsonResponse({"status": "error"}, status=400)
+            return JsonResponse({"status": "error"}, status=HTTPStatus.BAD_REQUEST)
         project.skills.remove(skill)
         return JsonResponse({"status": "ok"})

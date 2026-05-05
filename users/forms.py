@@ -9,11 +9,12 @@ from projects.validators import github_url_validator, normalize_phone_digits
 User = get_user_model()
 
 PHONE_PATTERN = re.compile(r"^(?:\+7|8)\d{10}$")
+USER_NAME_MAX_LENGTH = 124
 
 
 class RegisterForm(forms.Form):
-    name = forms.CharField(label="Имя", max_length=124)
-    surname = forms.CharField(label="Фамилия", max_length=124)
+    name = forms.CharField(label="Имя", max_length=USER_NAME_MAX_LENGTH)
+    surname = forms.CharField(label="Фамилия", max_length=USER_NAME_MAX_LENGTH)
     email = forms.EmailField(label="Email")
     password = forms.CharField(label="Пароль", widget=forms.PasswordInput)
 

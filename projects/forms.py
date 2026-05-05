@@ -4,6 +4,8 @@ from projects.validators import github_url_validator
 
 from .models import Project
 
+PROJECT_DESCRIPTION_ROWS = 6
+
 
 class ProjectForm(forms.ModelForm):
     class Meta:
@@ -23,7 +25,7 @@ class ProjectForm(forms.ModelForm):
             ),
             "description": forms.Textarea(
                 attrs={
-                    "rows": 6,
+                    "rows": PROJECT_DESCRIPTION_ROWS,
                     "placeholder": "Описание проекта",
                 }
             ),

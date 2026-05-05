@@ -1,9 +1,13 @@
 from django.conf import settings
 from django.db import models
 
+SKILL_NAME_MAX_LENGTH = 124
+PROJECT_NAME_MAX_LENGTH = 200
+PROJECT_STATUS_MAX_LENGTH = 6
+
 
 class Skill(models.Model):
-    name = models.CharField(max_length=124, unique=True)
+    name = models.CharField(max_length=SKILL_NAME_MAX_LENGTH, unique=True)
 
     class Meta:
         ordering = ["name"]
@@ -20,7 +24,7 @@ class Project(models.Model):
         (STATUS_CLOSED, "Closed"),
     )
 
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=PROJECT_NAME_MAX_LENGTH)
     description = models.TextField(blank=True)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -29,7 +33,7 @@ class Project(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     github_url = models.URLField(blank=True)
-    status = models.CharField(max_length=6, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=PROJECT_STATUS_MAX_LENGTH, choices=STATUS_CHOICES)
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name="participated_projects",
